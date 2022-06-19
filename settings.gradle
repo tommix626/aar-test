@@ -1,0 +1,3 @@
+include ':mytestlibrary'
+include ':app'
+rootProject.name = "aartest"
