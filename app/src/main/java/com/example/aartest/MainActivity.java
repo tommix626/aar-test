@@ -121,76 +121,23 @@ public class MainActivity extends AppCompatActivity {
 
         // Initialize asset manager so that MediaPipe native libraries can access the app assets, e.g.,
         // binary graphs.
-        AndroidAssetUtil.initializeNativeAssetManager(this);
+//        AndroidAssetUtil.initializeNativeAssetManager(this);
         eglManager = new EglManager(null);
         processor =
-                new FrameProcessor(
-                        this,
-                        eglManager.getNativeContext(),
-                        applicationInfo.metaData.getString("binaryGraphName"),
-                        applicationInfo.metaData.getString("inputVideoStreamName"),
-                        applicationInfo.metaData.getString("outputVideoStreamName"));
-        processor
-                .getVideoSurfaceOutput()
-                .setFlipY(
-                        applicationInfo.metaData.getBoolean("flipFramesVertically", FLIP_FRAMES_VERTICALLY));
+                new FrameProcessor(this,eglManager.getNativeContext());
 
         PermissionHelper.checkAndRequestCameraPermissions(this);
 
         //facemeshgpu extends
 
-        AndroidPacketCreator packetCreator = processor.getPacketCreator();
-        Map<String, Packet> inputSidePackets = new HashMap<>();
-        inputSidePackets.put(INPUT_NUM_FACES_SIDE_PACKET_NAME, packetCreator.createInt32(NUM_FACES));
-        processor.setInputSidePackets(inputSidePackets);
-
-        // To show verbose logging, run:
-        // adb shell setprop log.tag.MainActivity VERBOSE
-        if (Log.isLoggable(TAG, Log.VERBOSE)) {
-            processor.addPacketCallback(
-                    OUTPUT_LANDMARKS_STREAM_NAME,
-                    (packet) -> {
-                        Log.v(TAG, "Received multi face landmarks packet.");
-                        List<NormalizedLandmarkList> multiFaceLandmarks =
-                                PacketGetter.getProtoVector(packet, NormalizedLandmarkList.parser());
-                        Log.v(
-                                TAG,
-                                "[TS:"
-                                        + packet.getTimestamp()
-                                        + "] "
-                                        + getMultiFaceLandmarksDebugString(multiFaceLandmarks));
-                    });
-        }
+        //already implement in Frameprocessor
+//        AndroidPacketCreator packetCreator = processor.getPacketCreator();
+//        Map<String, Packet> inputSidePackets = new HashMap<>();
+//        inputSidePackets.put(INPUT_NUM_FACES_SIDE_PACKET_NAME, packetCreator.createInt32(NUM_FACES));
+//        processor.setInputSidePackets(inputSidePackets);
 
     }
-    private static String getMultiFaceLandmarksDebugString(
-            List<NormalizedLandmarkList> multiFaceLandmarks) {
-        if (multiFaceLandmarks.isEmpty()) {
-            return "No face landmarks";
-        }
-        String multiFaceLandmarksStr = "Number of faces detected: " + multiFaceLandmarks.size() + "\n";
-        int faceIndex = 0;
-        for (NormalizedLandmarkList landmarks : multiFaceLandmarks) {
-            multiFaceLandmarksStr +=
-                    "\t#Face landmarks for face[" + faceIndex + "]: " + landmarks.getLandmarkCount() + "\n";
-            int landmarkIndex = 0;
-            for (NormalizedLandmark landmark : landmarks.getLandmarkList()) {
-                multiFaceLandmarksStr +=
-                        "\t\tLandmark ["
-                                + landmarkIndex
-                                + "]: ("
-                                + landmark.getX()
-                                + ", "
-                                + landmark.getY()
-                                + ", "
-                                + landmark.getZ()
-                                + ")\n";
-                ++landmarkIndex;
-            }
-            ++faceIndex;
-        }
-        return multiFaceLandmarksStr;
-    }
+
 
     // Used to obtain the content view for this application. If you are extending this class, and
     // have a custom layout, override this method and return the custom layout.
@@ -262,7 +209,11 @@ public class MainActivity extends AppCompatActivity {
                         ? CameraHelper.CameraFacing.FRONT
                         : CameraHelper.CameraFacing.BACK;
         cameraHelper.startCamera(this, cameraFacing, /*unusedSurfaceTexture=*/ null, cameraTargetResolution());
+        //add converter reading the camerainput
+        converter.setSurfaceTexture(previewFrameTexture, 0, 0);
+//      onPreviewDisplaySurfaceChanged(null,0,100,100); //all the parameter not in used
     }
+
 
     protected Size computeViewSize(int width, int height) {
         return new Size(width, height);
