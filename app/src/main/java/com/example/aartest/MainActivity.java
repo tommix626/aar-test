@@ -14,13 +14,14 @@
 
 package com.example.aartest;
 
+import android.app.Application;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.os.Bundle;
-import androidx.appcompat.app.AppCompatActivity;
+import android.os.Handler;
 import android.util.Log;
 import android.util.Size;
 import android.view.SurfaceHolder;
@@ -28,25 +29,36 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 
-import com.example.aartest.R;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.Lifecycle;
+import androidx.lifecycle.LifecycleOwner;
+import androidx.lifecycle.LifecycleRegistry;
+
 import com.google.mediapipe.components.CameraHelper;
 import com.google.mediapipe.components.CameraXPreviewHelper;
 import com.google.mediapipe.components.ExternalTextureConverter;
 import com.google.mediapipe.components.FrameProcessor;
 import com.google.mediapipe.components.PermissionHelper;
+import com.google.mediapipe.components.TextureFrameConsumer;
 import com.google.mediapipe.framework.AndroidAssetUtil;
+import com.google.mediapipe.framework.AppTextureFrame;
 import com.google.mediapipe.glutil.EglManager;
 
-import android.os.Bundle;
-import android.util.Log;
-import com.google.mediapipe.formats.proto.LandmarkProto.NormalizedLandmark;
-import com.google.mediapipe.formats.proto.LandmarkProto.NormalizedLandmarkList;
-import com.google.mediapipe.framework.AndroidPacketCreator;
-import com.google.mediapipe.framework.Packet;
-import com.google.mediapipe.framework.PacketGetter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.Iterator;
+
+class LifeCycleDummy implements LifecycleOwner {
+    private LifecycleRegistry lifecycleRegistry;
+    public LifeCycleDummy() {
+        lifecycleRegistry = new LifecycleRegistry(this);
+        lifecycleRegistry.markState(Lifecycle.State.CREATED);
+    }
+    public void doOnResume() {
+        lifecycleRegistry.markState(Lifecycle.State.RESUMED);
+    }
+    public Lifecycle getLifecycle() {
+        return lifecycleRegistry;
+    }
+}
 
 /** Main activity of MediaPipe basic app. */
 public class MainActivity extends AppCompatActivity {
@@ -104,6 +116,14 @@ public class MainActivity extends AppCompatActivity {
     // ApplicationInfo for retrieving metadata defined in the manifest.
     private ApplicationInfo applicationInfo;
 
+    //delay test headrot
+    Handler handler;
+    Runnable runnable;
+    int delay = 1600;
+
+
+    LifeCycleDummy lc_dum;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -121,11 +141,11 @@ public class MainActivity extends AppCompatActivity {
 
         // Initialize asset manager so that MediaPipe native libraries can access the app assets, e.g.,
         // binary graphs.
-//        AndroidAssetUtil.initializeNativeAssetManager(this);
+        AndroidAssetUtil.initializeNativeAssetManager(this);
         eglManager = new EglManager(null);
         processor =
                 new FrameProcessor(this,eglManager.getNativeContext());
-
+        processor.getVideoSurfaceOutput().setFlipY(true);
         PermissionHelper.checkAndRequestCameraPermissions(this);
 
         //facemeshgpu extends
@@ -135,6 +155,8 @@ public class MainActivity extends AppCompatActivity {
 //        Map<String, Packet> inputSidePackets = new HashMap<>();
 //        inputSidePackets.put(INPUT_NUM_FACES_SIDE_PACKET_NAME, packetCreator.createInt32(NUM_FACES));
 //        processor.setInputSidePackets(inputSidePackets);
+        lc_dum = new LifeCycleDummy();
+        handler = new Handler();
 
     }
 
@@ -169,6 +191,29 @@ public class MainActivity extends AppCompatActivity {
         if (PermissionHelper.cameraPermissionsGranted(this)) {
             startCamera();
         }
+
+        handler.postDelayed(runnable = new Runnable() {
+            public void run() {
+                handler.postDelayed(runnable, delay);
+                previewFrameTexture.updateTexImage();
+                float turn=processor.mediapipe_api_get_turn();
+                float tilt=processor.mediapipe_api_get_tilt();
+                float nod=processor.mediapipe_api_get_nod();
+                Log.println(7,"MainActivity","Head turn,tilt,nod="+Float.toString(turn)+" "+Float.toString(tilt)+" "+Float.toString(nod));
+
+                converter.thread.onFrameAvailable(previewFrameTexture);
+//                Iterator iter = converter.thread.consumers.iterator();
+//
+//                while(iter.hasNext()) {
+//                    TextureFrameConsumer consumer = (TextureFrameConsumer) iter.next();
+//                    if (consumer != null) {
+//                        consumer.onNewFrame(previewFrameTexture);
+//                    }
+//                }
+            }
+        }, delay);
+        lc_dum.doOnResume();
+        Log.println(7,"MainActivity","Custom OnResume Ends.");
     }
 
     @Override
@@ -235,12 +280,27 @@ public class MainActivity extends AppCompatActivity {
                 previewFrameTexture,
                 isCameraRotated ? displaySize.getHeight() : displaySize.getWidth(),
                 isCameraRotated ? displaySize.getWidth() : displaySize.getHeight());
+        //temp
+        /*if (converter.thread.surfaceTexture != null) {
+            converter.thread.setOnFrameAvailableListener(converter.thread);
+        }
+
+        converter.thread.onFrameAvailable(converter.thread.surfaceTexture);
+
+        Iterator iter = converter.thread.consumers.iterator();
+
+        while(iter.hasNext()) {
+            TextureFrameConsumer consumer = (TextureFrameConsumer)iter.next();
+            if (consumer != null) {
+                consumer.onNewFrame(previewFrameTexture);
+            }
+        }*/
     }
 
     private void setupPreviewDisplayView() {
         previewDisplayView.setVisibility(View.GONE);
-        ViewGroup viewGroup = findViewById(R.id.preview_display_layout);
-        viewGroup.addView(previewDisplayView);
+        //ViewGroup viewGroup = findViewById(R.id.preview_display_layout);
+        //viewGroup.addView(previewDisplayView);
 
         previewDisplayView
                 .getHolder()
@@ -254,6 +314,7 @@ public class MainActivity extends AppCompatActivity {
                             @Override
                             public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
                                 onPreviewDisplaySurfaceChanged(holder, format, width, height);
+                                Log.println(7,"preview","surface Changed");
                             }
 
                             @Override
@@ -261,5 +322,25 @@ public class MainActivity extends AppCompatActivity {
                                 processor.getVideoSurfaceOutput().setSurface(null);
                             }
                         });
+    }
+
+    //AAR API to UE4
+    public float AAR_get_turn(){
+        float turn=processor.mediapipe_api_get_turn();
+        return turn;
+    }
+    public float AAR_get_tilt(){
+        float tilt=processor.mediapipe_api_get_tilt();
+        return tilt;
+    }
+    public float AAR_get_nod(){
+        float nod=processor.mediapipe_api_get_nod();
+        return nod;
+    }
+
+    public void AAR_get_head_rotation(float[] rotation){
+        rotation[0]=processor.mediapipe_api_get_turn();
+        rotation[1]=processor.mediapipe_api_get_tilt();
+        rotation[2]=processor.mediapipe_api_get_nod();
     }
 }
