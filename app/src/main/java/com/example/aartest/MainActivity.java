@@ -120,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
     Handler handler;
     Runnable runnable;
     int delay = 1600;
-
+    int initflag=0;
 
     LifeCycleDummy lc_dum;
 
@@ -195,7 +195,11 @@ public class MainActivity extends AppCompatActivity {
         handler.postDelayed(runnable = new Runnable() {
             public void run() {
                 handler.postDelayed(runnable, delay);
-                previewFrameTexture.updateTexImage();
+                if(previewFrameTexture != null && initflag == 0){
+                    converter.setSurfaceTextureAndAttachToGLContext(previewFrameTexture, 800, 800);
+                    initflag=1;
+                }
+//                previewFrameTexture.updateTexImage();
                 float turn=processor.mediapipe_api_get_turn();
                 float tilt=processor.mediapipe_api_get_tilt();
                 float nod=processor.mediapipe_api_get_nod();
@@ -255,7 +259,7 @@ public class MainActivity extends AppCompatActivity {
                         : CameraHelper.CameraFacing.BACK;
         cameraHelper.startCamera(this, cameraFacing, /*unusedSurfaceTexture=*/ null, cameraTargetResolution());
         //add converter reading the camerainput
-        converter.setSurfaceTexture(previewFrameTexture, 0, 0);
+//        converter.setSurfaceTexture(previewFrameTexture, 0, 0);
 //      onPreviewDisplaySurfaceChanged(null,0,100,100); //all the parameter not in used
     }
 
@@ -299,8 +303,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupPreviewDisplayView() {
         previewDisplayView.setVisibility(View.GONE);
-        //ViewGroup viewGroup = findViewById(R.id.preview_display_layout);
-        //viewGroup.addView(previewDisplayView);
+        ViewGroup viewGroup = findViewById(R.id.preview_display_layout);
+        viewGroup.addView(previewDisplayView);
 
         previewDisplayView
                 .getHolder()
@@ -313,7 +317,7 @@ public class MainActivity extends AppCompatActivity {
 
                             @Override
                             public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-                                onPreviewDisplaySurfaceChanged(holder, format, width, height);
+                                //onPreviewDisplaySurfaceChanged(holder, format, width, height);
                                 Log.println(7,"preview","surface Changed");
                             }
 
