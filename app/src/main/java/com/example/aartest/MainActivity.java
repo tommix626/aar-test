@@ -304,7 +304,7 @@ public class MainActivity extends AppCompatActivity {
     private void setupPreviewDisplayView() {
         previewDisplayView.setVisibility(View.GONE);
         ViewGroup viewGroup = findViewById(R.id.preview_display_layout);
-        viewGroup.addView(previewDisplayView);
+//        viewGroup.addView(previewDisplayView);
 
         previewDisplayView
                 .getHolder()
@@ -317,7 +317,7 @@ public class MainActivity extends AppCompatActivity {
 
                             @Override
                             public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-                                //onPreviewDisplaySurfaceChanged(holder, format, width, height);
+//                                onPreviewDisplaySurfaceChanged(holder, format, width, height);
                                 Log.println(7,"preview","surface Changed");
                             }
 
